@@ -3,19 +3,25 @@ const admin = require("firebase-admin");
 
 admin.initializeApp();
 
-exports.helloWorld = functions.https.onRequest((request, response) => {
-  response.send("Hello from Firebase!");
-});
+const express = require("express");
+const { request } = require("express");
+const app = express();
 
-exports.getHowls = functions.https.onRequest((req, res) => {
+app.get("/howls", (req, res) => {
   admin
     .firestore()
     .collection("howls")
+    .orderBy("createdAt", "desc")
     .get()
     .then((data) => {
       let howls = [];
       data.forEach((doc) => {
-        howls.push(doc.data());
+        howls.push({
+          howlId: doc.id,
+          body: doc.data().body,
+          userHandle: doc.data().userHandle,
+          createdAt: doc.data().createdAt,
+        });
       });
       return res.json(howls);
     })
@@ -24,11 +30,11 @@ exports.getHowls = functions.https.onRequest((req, res) => {
     });
 });
 
-exports.createHowl = functions.https.onRequest((req, res) => {
+app.post("/howls/new", (req, res) => {
   const newHowl = {
     body: req.body.body,
     userHandle: req.body.userHandle,
-    createdAt: admin.firestore.Timestamp.fromDate(new Date()),
+    createdAt: new Date().toISOString(),
   };
 
   admin
@@ -43,3 +49,7 @@ exports.createHowl = functions.https.onRequest((req, res) => {
       console.error(err);
     });
 });
+
+exports.api = functions.https.onRequest(app);
+
+// To emulate your functions: Run firebase emulators:start
